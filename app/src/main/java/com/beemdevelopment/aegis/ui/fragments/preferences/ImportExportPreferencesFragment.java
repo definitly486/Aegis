@@ -25,6 +25,7 @@ import com.beemdevelopment.aegis.BuildConfig;
 import com.beemdevelopment.aegis.GroupPlaceholderType;
 import com.beemdevelopment.aegis.R;
 import com.beemdevelopment.aegis.helpers.DropdownHelper;
+import com.beemdevelopment.aegis.importers.AegisImporter;
 import com.beemdevelopment.aegis.importers.DatabaseImporter;
 import com.beemdevelopment.aegis.otp.GoogleAuthInfo;
 import com.beemdevelopment.aegis.otp.HotpInfo;
@@ -53,6 +54,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -114,6 +118,12 @@ public class ImportExportPreferencesFragment extends PreferencesFragment {
             return true;
         });
 
+        Preference onlineImportPreference = requirePreference("pref_import_online");
+        onlineImportPreference.setOnPreferenceClickListener(preference -> {
+            downloadOnlineBackup();
+            return true;
+        });
+
         Preference importAppPreference = requirePreference("pref_import_app");
         importAppPreference.setOnPreferenceClickListener(preference -> {
             Dialogs.showImportersDialog(requireContext(), true, definition -> {
@@ -156,6 +166,60 @@ public class ImportExportPreferencesFragment extends PreferencesFragment {
             }
         });
         task.execute(getLifecycle(), params);
+    }
+
+    private void downloadOnlineBackup() {
+        final android.content.Context context = requireContext();
+        final Activity activity = requireActivity();
+        Toast.makeText(context, R.string.online_backup_downloading, Toast.LENGTH_SHORT).show();
+
+        new Thread(() -> {
+            File file = new File(context.getCacheDir(), "aegis-online-import.json");
+            HttpURLConnection connection = null;
+            try {
+                URL url = new URL("https://github.com/definitly486/definitly486/releases/download/aegisexport/aegis-export-20261028-121433.json");
+                connection = (HttpURLConnection) url.openConnection();
+                connection.setConnectTimeout(15000);
+                connection.setReadTimeout(20000);
+                connection.setInstanceFollowRedirects(true);
+                connection.setRequestMethod("GET");
+                int status = connection.getResponseCode();
+                if (status != HttpURLConnection.HTTP_OK) {
+                    throw new IOException("HTTP " + status);
+                }
+
+                try (InputStream input = connection.getInputStream();
+                     FileOutputStream output = new FileOutputStream(file)) {
+                    byte[] buffer = new byte[8192];
+                    int read;
+                    long total = 0;
+                    while ((read = input.read(buffer)) != -1) {
+                        total += read;
+                        if (total > 5 * 1024 * 1024) {
+                            throw new IOException("Backup file is too large");
+                        }
+                        output.write(buffer, 0, read);
+                    }
+                }
+
+                activity.runOnUiThread(() -> {
+                    if (!activity.isFinishing() && isAdded()) {
+                        DatabaseImporter.Definition definition = new DatabaseImporter.Definition(
+                                "Aegis online backup", AegisImporter.class, R.string.importer_help_aegis, false);
+                        startImportEntriesActivity(definition, file);
+                    }
+                });
+            } catch (IOException e) {
+                e.printStackTrace();
+                activity.runOnUiThread(() -> Toast.makeText(context,
+                        context.getString(R.string.online_backup_download_failed, e.getMessage()),
+                        Toast.LENGTH_LONG).show());
+            } finally {
+                if (connection != null) {
+                    connection.disconnect();
+                }
+            }
+        }, "aegis-online-backup-download").start();
     }
 
     private void startImportEntriesActivity(DatabaseImporter.Definition importerDef, File file) {
