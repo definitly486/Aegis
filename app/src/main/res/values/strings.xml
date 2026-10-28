@@ -624,4 +624,8 @@
         <item quantity="one">%d item selected</item>
         <item quantity="other">%d items selected</item>
     </plurals>
+    <string name="pref_import_online_title">Download and import online backup</string>
+    <string name="pref_import_online_summary">Download the predefined Aegis JSON backup and review its codes before importing</string>
+    <string name="online_backup_downloading">Downloading Aegis backup…</string>
+    <string name="online_backup_download_failed">Could not download backup: %1$s</string>
 </resources>
