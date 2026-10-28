@@ -8,6 +8,11 @@
         android:summary="@string/pref_import_file_summary"
         app:iconSpaceReserved="false"/>
     <Preference
+        android:key="pref_import_online"
+        android:title="@string/pref_import_online_title"
+        android:summary="@string/pref_import_online_summary"
+        app:iconSpaceReserved="false"/>
+    <Preference
         android:key="pref_import_app"
         android:title="@string/pref_import_app_title"
         android:summary="@string/pref_import_app_summary"
